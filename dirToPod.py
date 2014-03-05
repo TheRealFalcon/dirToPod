@@ -53,7 +53,7 @@ class RssGenerator(object):
         self.put('\t\t<item>\n')
         self.put('\t\t\t<title>%s</title>\n' % filename)
         link = SERVER + '/' + title + '/' + filename
-        self.put('\t\t\t<link>%s</link>\n' % link)
+        self.put('\t\t\t<link>%s</link>\n' % link.replace(' ', '%20'))
         self.put('\t\t\t<enclosure url="%s" />\n' % link.replace(' ', '%20'))
         self.put('\t\t\t<lastBuildDate>' + publishTime.strftime('%a, %d %b %Y %H:%M:%S -0600') + '</lastBuildDate>\n')
         self.put('\t\t\t<pubDate>' + publishTime.strftime('%a, %d %b %Y %H:%M:%S -0600') + '</pubDate>\n')
