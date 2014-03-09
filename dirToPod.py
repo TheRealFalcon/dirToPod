@@ -5,6 +5,7 @@ import os
 import unicodedata
 import datetime
 import re
+import shutil
 
 WEB_ROOT = '/var/www'
 SERVER = os.environ.get('DOMAIN', 'http://example.com')
@@ -18,13 +19,16 @@ class RssGenerator(object):
             exit(1)
         self.rssFile = open(rssFilePath, 'w')
         self.createHeader(title, directory)
+
         publishTime = datetime.datetime.now()
         oneHour = datetime.timedelta(hours=1)
         for root,dirs,files in os.walk(directory):
             files.sort(reverse=True)
-            for ttcFile in files:
-                if ttcFile.endswith('.mp3'):
-                    self.createItem(root, title, ttcFile, publishTime)
+            for oldFile in files:
+                newFile = oldFile.replace(' ', '_') #My podcatcher won't accept the %20 encoded URLs
+                shutil.move(os.path.join(directory, oldFile), os.path.join(directory, newFile))
+                if newFile.endswith('.mp3'):
+                    self.createItem(root, title, newFile, publishTime)
                     publishTime -= oneHour
         self.createFooter()
         self.rssFile.close()
@@ -40,21 +44,23 @@ class RssGenerator(object):
 
 
     def createHeader(self, title, rootDir):
-        self.put('<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">\n')
+        self.put('<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/">\n')
         self.put('\t<channel>\n')
         self.put('\t\t<title>%s</title>\n' % title)
         # If an image exists in the dir, grab one at random since we have no way of distinguishing between images.
         imageList = [image for image in os.listdir(rootDir) if re.search('.*\.(jpg|jpeg|png|gif|bmp)', image)]
         if imageList:
-            self.put('\t\t<image><url>%s/%s/%s</url></image>\n' % (SERVER, title, imageList[0].replace(' ', '%20')))
+            self.put('\t\t<image><url>%s/%s/%s</url></image>\n' % (SERVER, title, imageList[0]))
 
 
     def createItem(self, rootDir, title, filename, publishTime):
         self.put('\t\t<item>\n')
         self.put('\t\t\t<title>%s</title>\n' % filename)
-        link = SERVER + '/' + title + '/' + filename
+        link = '%s/%s.xml' % (SERVER, title)
         self.put('\t\t\t<link>%s</link>\n' % link)
-        self.put('\t\t\t<enclosure url="%s" />\n' % link.replace(' ', '%20'))
+        enclosure = '%s/%s/%s' % (SERVER, title, filename)
+        self.put('\t\t\t<enclosure url="%s" />\n' % enclosure)
+        self.put('\t\t\t<media:content url="%s" />\n' % enclosure)
         self.put('\t\t\t<lastBuildDate>' + publishTime.strftime('%a, %d %b %Y %H:%M:%S -0600') + '</lastBuildDate>\n')
         self.put('\t\t\t<pubDate>' + publishTime.strftime('%a, %d %b %Y %H:%M:%S -0600') + '</pubDate>\n')
         self.put('\t\t</item>\n')
