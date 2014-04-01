@@ -50,7 +50,7 @@ class RssGenerator(object):
         # If an image exists in the dir, grab one at random since we have no way of distinguishing between images.
         imageList = [image for image in os.listdir(rootDir) if re.search('.*\.(jpg|jpeg|png|gif|bmp)', image)]
         if imageList:
-            self.put('\t\t<image><url>%s/%s/%s</url></image>\n' % (SERVER, title, imageList[0]))
+            self.put('\t\t<image><url>%s/%s/%s</url></image>\n' % (SERVER, title, imageList[0].replace(' ', '_')))
 
 
     def createItem(self, rootDir, title, filename, publishTime):
