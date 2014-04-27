@@ -11,6 +11,10 @@ WEB_ROOT = '/var/www'
 SERVER = os.environ.get('DOMAIN', 'http://example.com')
 
 class RssGenerator(object):
+    @property
+    def link(self):
+        return self.title
+
     def __init__(self, directory, title):
         rssFilePath = WEB_ROOT + os.sep + title + ".xml"
         symlinkPath = WEB_ROOT + os.sep + title
@@ -34,7 +38,7 @@ class RssGenerator(object):
         self.rssFile.close()
 
         os.symlink(os.path.abspath(directory), symlinkPath)
-        print("Point podcatcher to %s/%s.xml" % (SERVER,title))
+        self.title = "%s.xml" % title
 
     def put(self, text):
         # Force unicode characters to look Ascii
@@ -89,5 +93,6 @@ if __name__ == '__main__':
         print("Must specify directory")
         exit(1)
     gen = RssGenerator(directory, title)
+    print("Point podcatcher to %s/%s" % (SERVER,gen.link))
 
 
