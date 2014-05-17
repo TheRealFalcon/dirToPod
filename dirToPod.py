@@ -8,7 +8,7 @@ import re
 import shutil
 
 WEB_ROOT = '/var/www'
-SERVER = os.environ.get('DOMAIN', 'http://example.com')
+SERVER = os.environ.get('DOMAIN', 'http://www.example.com')
 
 class RssGenerator(object):
     @property
@@ -19,21 +19,24 @@ class RssGenerator(object):
         rssFilePath = WEB_ROOT + os.sep + title + ".xml"
         symlinkPath = WEB_ROOT + os.sep + title
         if os.path.exists(rssFilePath) or os.path.exists(symlinkPath):
-            print(rssFilePath + " or " + symlinkPath + " already exist! Get rid of them if you want to continue")
-            exit(1)
+            os.remove(rssFilePath)
+            os.remove(symlinkPath)
+            # print(rssFilePath + " or " + symlinkPath + " already exist! Get rid of them if you want to continue")
+            # exit(1)
         self.rssFile = open(rssFilePath, 'w')
         self.createHeader(title, directory)
 
         publishTime = datetime.datetime.now()
         oneHour = datetime.timedelta(hours=1)
-        for root,dirs,files in os.walk(directory):
-            files.sort(reverse=True)
-            for oldFile in files:
-                newFile = oldFile.replace(' ', '_') #My podcatcher won't accept the %20 encoded URLs
-                shutil.move(os.path.join(directory, oldFile), os.path.join(directory, newFile))
-                if newFile.endswith('.mp3'):
-                    self.createItem(root, title, newFile, publishTime)
-                    publishTime -= oneHour
+        # for root,dirs,files in os.walk(directory):
+        files = [aFile for aFile in os.listdir(directory) if not os.path.isdir(aFile)]
+        files.sort(reverse=True)
+        for oldFile in files:
+            newFile = oldFile.replace(' ', '_') #My podcatcher won't accept the %20 encoded URLs
+            shutil.move(os.path.join(directory, oldFile), os.path.join(directory, newFile))
+            if newFile.endswith('.mp3'):
+                self.createItem(directory, title, newFile, publishTime)
+                publishTime -= oneHour
         self.createFooter()
         self.rssFile.close()
 
