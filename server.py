@@ -1,8 +1,11 @@
 import flask
+import logging
 from flask import Flask, send_from_directory, render_template, jsonify, url_for, request, redirect
 from dirToPod import RssGenerator
+from reverse_proxied import ReverseProxied
 from eyed3 import id3
 from random import random
+from logging.handlers import RotatingFileHandler
 
 import shutil
 
@@ -11,11 +14,17 @@ import subprocess
 
 
 app = Flask(__name__)
-SERVER_ROOT = '/var/www'
+app.wsgi_app = ReverseProxied(app.wsgi_app)
+SERVER_ROOT = '/var/www/books'
 AUDIOBOOK_DIRECTORY = '/data/audiobooks'
+LOGSIZE = 1000000 # 1MB
+
+# Setup simple logging
+log = logging.Logger('appLog')
+log.addHandler(RotatingFileHandler('/tmp/dirToPod.log', maxBytes=LOGSIZE, backupCount=1))
 
 @app.route("/")
-def listAudiobooks():
+def index():
     pageText = ''
     for item in sorted(os.listdir(AUDIOBOOK_DIRECTORY)):
         if not item.startswith('.'):
@@ -25,7 +34,7 @@ def listAudiobooks():
 @app.route("/audiobook/<path:path>")
 def getRss(path):
     # if not os.path.exists("%s/%s.xml" % (SERVER_ROOT, path)):
-    RssGenerator("%s/%s" % (AUDIOBOOK_DIRECTORY, path.replace('_',' ')), path)
+    RssGenerator('http://{0}{1}'.format(request.host, url_for('index')[:-1]), "%s/%s" % (AUDIOBOOK_DIRECTORY, path.replace('_',' ')), path)
     return send_from_directory(SERVER_ROOT, "%s.xml" %  path)
     #return redirect("http://%s/%s.xml" % (request.headers['Host'], path))
 
@@ -59,7 +68,7 @@ def getHierarchy():
             data.append({ 'id' : os.path.join(root, entry), 'text' : entry, 'parent' : root, 'icon' : icon})
 
     data = [{'id' : AUDIOBOOK_DIRECTORY, 'text' : 'audiobooks', 'parent' : '#'}]
-    for root,dirs,files in os.walk('/data/audiobooks'):
+    for root,dirs,files in os.walk(AUDIOBOOK_DIRECTORY):
         files = [f for f in files if not f[0] == '.']
         dirs[:] = [d for d in dirs if not d[0] == '.']
         addEntries(dirs, 'jstree-folder')
@@ -102,7 +111,7 @@ def move():
     elif os.path.isfile(dropTo):
         newPath = os.path.dirname(dropTo)
     else:
-        app.logger.debug('Trying to drop on file that is neither directory or file...what is it?')
+        log.debug('Trying to drop on file that is neither directory or file...what is it?')
     newPath = newPath + os.path.sep + os.path.basename(oldPath)
 
     if os.path.exists(newPath):
@@ -126,18 +135,18 @@ def reencode():
     return ''
 
 def runProcess(args, cwd):
-    app.logger.debug(args)
+    log.debug(args)
     stdout = '/tmp/stdout%s' % str(random()).split('.')[1]
     with open(stdout, 'w') as out:
         pobj = subprocess.Popen(args, stdout=out, stderr=subprocess.STDOUT, cwd=cwd)
         ret = pobj.wait()
     with open(stdout, 'r') as out:
-        app.logger.debug(out.read())
+        log.debug(out.read())
     os.remove(stdout)
     
     
 
 if __name__ == "__main__":
-    app.run('0.0.0.0', port=81, debug=True)
+    app.run('0.0.0.0', port=8881, debug=True)
 
 

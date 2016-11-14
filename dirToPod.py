@@ -7,7 +7,7 @@ import datetime
 import re
 import shutil
 
-WEB_ROOT = '/var/www'
+WEB_ROOT = '/var/www/books'
 SERVER = os.environ.get('DOMAIN', 'http://www.example.com')
 
 class RssGenerator(object):
@@ -15,14 +15,14 @@ class RssGenerator(object):
     def link(self):
         return self.title
 
-    def __init__(self, directory, title):
-        rssFilePath = WEB_ROOT + os.sep + title + ".xml"
-        symlinkPath = WEB_ROOT + os.sep + title
-        if os.path.exists(rssFilePath) or os.path.exists(symlinkPath):
+    def __init__(self, server, directory, title):
+        self.server = server
+        rssFilePath = "{}{}{}.xml".format(WEB_ROOT, os.sep, title)
+        symlinkPath = "{}{}{}".format(WEB_ROOT, os.sep, title)
+        if os.path.exists(rssFilePath):
             os.remove(rssFilePath)
+        if os.path.exists(symlinkPath):
             os.remove(symlinkPath)
-            # print(rssFilePath + " or " + symlinkPath + " already exist! Get rid of them if you want to continue")
-            # exit(1)
         self.rssFile = open(rssFilePath, 'w')
         self.createHeader(title, directory)
 
@@ -57,15 +57,15 @@ class RssGenerator(object):
         # If an image exists in the dir, grab one at random since we have no way of distinguishing between images.
         imageList = [image for image in os.listdir(rootDir) if re.search('.*\.(jpg|jpeg|png|gif|bmp)', image)]
         if imageList:
-            self.put('\t\t<image><url>%s/%s/%s</url></image>\n' % (SERVER, title, imageList[0].replace(' ', '_')))
+            self.put('\t\t<image><url>%s/%s/%s</url></image>\n' % (self.server, title, imageList[0].replace(' ', '_')))
 
 
     def createItem(self, rootDir, title, filename, publishTime):
         self.put('\t\t<item>\n')
         self.put('\t\t\t<title>%s</title>\n' % filename)
-        link = '%s/%s.xml' % (SERVER, title)
+        link = '%s/%s.xml' % (self.server, title)
         self.put('\t\t\t<link>%s</link>\n' % link)
-        enclosure = '%s/%s/%s' % (SERVER, title, filename)
+        enclosure = '%s/%s/%s' % (self.server, title, filename)
         self.put('\t\t\t<enclosure url="%s" />\n' % enclosure)
         self.put('\t\t\t<media:content url="%s" />\n' % enclosure)
         self.put('\t\t\t<lastBuildDate>' + publishTime.strftime('%a, %d %b %Y %H:%M:%S -0600') + '</lastBuildDate>\n')
@@ -95,7 +95,7 @@ if __name__ == '__main__':
     if not os.path.isdir(directory):
         print("Must specify directory")
         exit(1)
-    gen = RssGenerator(directory, title)
+    gen = RssGenerator(SERVER, directory, title)
     print("Point podcatcher to %s/%s" % (SERVER,gen.link))
 
 
